@@ -74,36 +74,36 @@ const vehicleProfiles = [
 
 const METRIC_TOOLTIPS = {
   "Baustellenplanung vor dem Start": {
-    fahrzeit: "Durch aktive Sperrungen entstehen Verzögerungen – jede Vollsperrung erhöht die Gesamtfahrzeit durch Stau und Umwege.",
-    kosten: "Umfasst Kraftstoff, Maut und Zeitverluste. Vollsperrungen treiben Umwegkosten besonders stark in die Höhe.",
-    co2: "Stop-and-Go und Umwege rund um Baustellen erhöhen den CO₂-Ausstoß gegenüber ungehinderter Fahrt.",
-    umleitungen: "Anteil der Fahrzeuge, die wegen Vollsperrungen auf alternative Routen ausweichen müssen.",
-    kosten_detail: "Kraftstoffkosten steigen durch Umwege und Stau. Mautkosten bleiben weitgehend konstant. Zeitkosten spiegeln Produktivitätsverlust wider.",
-    co2_quelle: "Stauphasen erhöhen den Anteil durch häufige Brems-/Beschleunigungszyklen. Umwege erhöhen den Fahrtenanteil.",
+    fahrzeit: "Was bedeutet das? Die Gesamtfahrzeit aller Fahrzeuge im Analysegebiet.\n\nEinflussfaktoren: Anzahl & Typ der Sperrungen (Vollsperrung = Stau + Umwege), Fahrzeugmix, Wetter und Tageszeit. Jede Vollsperrung verlängert die Fahrzeit erheblich durch erzwungene Umleitungen.",
+    kosten: "Was bedeutet das? Die gesamten wirtschaftlichen Kosten des Verkehrs (Kraftstoff, Maut, Zeitverluste).\n\nEinflussfaktoren: Fahrzeuganzahl, Gewicht, Sperrungen und Maschineneinsatz. Vollsperrungen erhöhen die Umwegkosten besonders stark.",
+    co2: "Was bedeutet das? Der geschätzte CO₂-Ausstoß aller Fahrzeuge.\n\nEinflussfaktoren: Fahrzeugmix (LKW-Anteil), Sperrungen (Stop-and-Go), Wetter und Maschineneinsatz. Baustellen-Staus erhöhen Emissionen durch häufiges Bremsen und Beschleunigen.",
+    umleitungen: "Was bedeutet das? Prozentsatz der Fahrzeuge, die eine Alternativroute nehmen müssen.\n\nEinflussfaktoren: Anzahl Vollsperrungen (jede erhöht Anteil um ~6%), Gesamtsperrungen (~7% pro Sperrung), aktive Umleitungsschaltung (+8%). Teilsperrungen verursachen weniger Umleitungen.",
+    kosten_detail: "Was bedeutet das? Aufschlüsselung der Gesamtkosten nach Kategorien.\n\nKraftstoff: Steigt durch Umwege und Stau – beeinflusst durch Treibstoffpreis und Fahrzeuggewicht.\nMaut: Abhängig von LKW-Anzahl, kaum beeinflusst durch Sperrungen.\nZeitverlust: Direkt gekoppelt an Stauverzögerungen × Fahrzeuganzahl.",
+    co2_quelle: "Was bedeutet das? Aufschlüsselung der CO₂-Emissionen nach Ursache.\n\nFahren: Normaler Fahrbetrieb. Stau: Brems-/Beschleunigungszyklen rund um Sperrungen – steigt stark mit Baustellenanzahl. Kaltstart: Erhöht bei kurzen Strecken, sinkt bei mehr Sperrungen.",
   },
   "CO2 Berechnung": {
-    fahrzeit: "Längere Fahrzeiten bedeuten mehr Kraftstoffverbrauch – dient als Basis für die CO₂-Hochrechnung.",
-    kosten: "Beinhaltet Kraftstoffkosten nach aktuellem Preis und den externen CO₂-Kostensatz (€/t CO₂).",
-    co2: "Berechnet aus Fahrzeugmix, Emissionsklasse und Verkehrsprognose. Euro-6d-Fahrzeuge emittieren ~12% weniger als Euro 6.",
-    umleitungen: "Umleitungsfahrten erzeugen Mehremissionen durch längere Strecken und häufige Brems-/Beschleunigungszyklen.",
-    kosten_detail: "Kraftstoffkosten skalieren mit dem eingestellten Treibstoffpreis. Der CO₂-Preis (€/t) fließt als externer Kostensatz ein.",
-    co2_quelle: "Kaltstartanteil erhöht sich bei kurzen Strecken. Stauanteil wächst mit Verkehrsdichte und Sperrungen.",
+    fahrzeit: "Was bedeutet das? Fahrzeit als Basis für die CO₂-Hochrechnung – je länger gefahren wird, desto mehr Kraftstoff wird verbraucht.\n\nEinflussfaktoren: Fahrzeugmix, Verkehrsprognose und Tageszeit.",
+    kosten: "Was bedeutet das? Wirtschaftliche Gesamtkosten inklusive externer CO₂-Kosten.\n\nEinflussfaktoren: Treibstoffpreis (€/l), CO₂-Preis (€/t), Emissionsklasse und Verkehrsprognose. Höherer CO₂-Preis = höhere externe Kosten.",
+    co2: "Was bedeutet das? Gesamte CO₂-Emissionen in Tonnen.\n\nEinflussfaktoren: Emissionsklasse (Euro 6d = -12% ggü. Euro 6), Verkehrsprognose (Hoch = +15%), Fahrzeugmix und Wetter. Schwere Fahrzeuge emittieren überproportional mehr.",
+    umleitungen: "Was bedeutet das? Mehremissionen durch längere Alternativrouten.\n\nEinflussfaktoren: Umwege erzeugen mehr Fahrkilometer und häufigere Brems-/Beschleunigungszyklen, was den CO₂-Ausstoß zusätzlich erhöht.",
+    kosten_detail: "Was bedeutet das? Detaillierte Kostenaufteilung für den CO₂-Modus.\n\nKraftstoff skaliert mit dem eingestellten Treibstoffpreis. Der CO₂-Preis (€/t) fließt als externer Klimakostensatz ein – bei 55€/t z.B. ~3-5% der Gesamtkosten.",
+    co2_quelle: "Was bedeutet das? Woher die CO₂-Emissionen kommen.\n\nKaltstart: Erhöht sich bei kurzen, häufigen Fahrten. Stauanteil: Wächst mit Verkehrsdichte. Fahren: Normaler Fahrbetrieb – größter Anteil bei flüssigem Verkehr.",
   },
   "Unfallrisikoreduktion": {
-    fahrzeit: "Tempolimits erhöhen Fahrzeiten leicht, reduzieren aber das Unfallrisiko deutlich – besonders bei schlechten Sichtverhältnissen.",
-    kosten: "Berechnet mit Unfallfolgekosten (Schäden, Einsatzkräfte). Tempo 30 spart langfristig bis zu 40% dieser Kosten.",
-    co2: "Geringere Geschwindigkeit senkt bei konstanter Fahrt die Emissionen, Stau-Effekte können dies teilweise kompensieren.",
-    umleitungen: "Unfallsperrungen erzwingen spontane Umleitungen – häufiger bei schlechtem Straßenzustand oder fehlenden Markierungen.",
-    kosten_detail: "Unfallkosten werden anteilig eingerechnet. Straßenzustand und Markierungen beeinflussen die Häufigkeit.",
-    co2_quelle: "Geringere Tempolimits verändern das Fahrmuster – weniger aggressive Beschleunigung, dafür mehr Rollverhalten.",
+    fahrzeit: "Was bedeutet das? Fahrzeitverlängerung durch Sicherheitsmaßnahmen.\n\nEinflussfaktoren: Tempolimit (niedriger = längere Fahrzeit, aber deutlich weniger Unfälle), Straßenzustand und Sichtverhältnisse.",
+    kosten: "Was bedeutet das? Kosten inklusive Unfallfolgekosten (Schäden, Rettungskräfte, Ausfallzeiten).\n\nEinflussfaktoren: Tempo 30 spart langfristig bis zu 40% der Unfallkosten. Guter Straßenzustand und Beleuchtung reduzieren Kosten zusätzlich.",
+    co2: "Was bedeutet das? CO₂-Bilanz unter Berücksichtigung der Sicherheitsmaßnahmen.\n\nEinflussfaktoren: Geringere Geschwindigkeit senkt Emissionen bei konstanter Fahrt. Stau durch Tempolimits kann diesen Effekt teilweise kompensieren.",
+    umleitungen: "Was bedeutet das? Spontane Umleitungen durch unfallbedingte Sperrungen.\n\nEinflussfaktoren: Schlechter Straßenzustand und fehlende Markierungen erhöhen die Unfallhäufigkeit und damit den Umleitungsanteil.",
+    kosten_detail: "Was bedeutet das? Kostenaufschlüsselung mit eingerechneten Unfallkosten.\n\nStraßenzustand und Fahrbahnmarkierungen beeinflussen die Unfallhäufigkeit direkt. Gute Markierungen reduzieren Unfälle um ~10%.",
+    co2_quelle: "Was bedeutet das? CO₂-Verteilung nach Quelle bei Sicherheitsmaßnahmen.\n\nNiedrigere Tempolimits verändern das Fahrmuster: weniger aggressive Beschleunigung, mehr Rollverhalten – der Stauanteil sinkt bei gleichmäßigerem Verkehrsfluss.",
   },
   "Frühwarnsystem": {
-    fahrzeit: "Prognose der Fahrzeitverlängerung über den gewählten Zeitraum. Das Belastungsmodell bestimmt das Wachstumstempo.",
-    kosten: "Hochrechnung der Kosten bei unveränderter Infrastruktur. Frühzeitige Sanierung reduziert diese Zahl erheblich.",
-    co2: "CO₂-Projektion bei prognostiziertem Verkehrswachstum – exponentielles Modell zeigt besonders starkes Wachstum.",
-    umleitungen: "Prognostizierter Anteil von Umleitungen bei erwarteter Infrastrukturüberlastung ohne präventiven Eingriff.",
-    kosten_detail: "Kostensteigerung folgt dem gewählten Wachstumsmodell. Exponentielles Modell zeigt den worst case.",
-    co2_quelle: "Bei wachsendem Verkehr verschieben sich die Anteile – Stau wird zum dominanten Emissionstreiber.",
+    fahrzeit: "Was bedeutet das? Prognostizierte Fahrzeitverlängerung über den gewählten Zeitraum.\n\nEinflussfaktoren: Prognosehorizont (Wochen), Belastungsmodell (exponentiell = schnellstes Wachstum) und Alertschwelle.",
+    kosten: "Was bedeutet das? Hochrechnung der Kosten bei unveränderter Infrastruktur.\n\nEinflussfaktoren: Belastungsmodell und Prognosehorizont. Frühzeitige Sanierung kann diese prognostizierten Kosten um 30-60% reduzieren.",
+    co2: "Was bedeutet das? CO₂-Projektion bei erwarteter Verkehrsentwicklung.\n\nEinflussfaktoren: Exponentielles Modell zeigt das stärkste Wachstum (~6%/Woche). Saisonales Modell berücksichtigt Schwankungen. Linear = konservative Schätzung.",
+    umleitungen: "Was bedeutet das? Prognostizierter Umleitungsanteil bei Infrastrukturüberlastung.\n\nEinflussfaktoren: Ohne präventive Maßnahmen steigt die Überlastung mit dem Belastungsmodell – mehr Umleitungen werden nötig.",
+    kosten_detail: "Was bedeutet das? Detaillierte Kostenprognose nach dem gewählten Wachstumsmodell.\n\nExponentielles Modell zeigt den worst-case. Lineares Modell: moderate Steigerung. Saisonales Modell: Schwankungen mit Trend.",
+    co2_quelle: "Was bedeutet das? Prognostizierte CO₂-Verteilung bei wachsendem Verkehr.\n\nBei zunehmender Verkehrsdichte wird Stau zum dominanten Emissionstreiber – der Stauanteil kann von ~20% auf über 40% steigen.",
   },
 };
 
@@ -164,40 +164,39 @@ function interpolatePosition(path, progress) {
   return [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac];
 }
 
-function spawnSimVehicles(sites) {
+function spawnSimVehicles(sites, isBaustelleMode) {
   const vehicles = [];
 
-  sites.forEach((site, si) => {
-    if (vehicles.length >= 10) return;
-    const path = site.routeCoords;
-    if (!path || path.length < 2) return;
+  // Only spawn construction-related vehicles when in Baustelle mode and sites exist
+  if (isBaustelleMode && sites.length > 0) {
+    sites.forEach((site, si) => {
+      if (vehicles.length >= 10) return;
+      const path = site.routeCoords;
+      if (!path || path.length < 2) return;
 
-    if (site.type === "vollsperrung") {
-      // 2 stau vehicles stopped before the sperrung
-      [0.28, 0.36].forEach((pos, i) => {
-        if (vehicles.length >= 10) return;
-        vehicles.push({ id: `stau-${site.id}-${i}`, path, progress: pos, speed: 0.00008, maxProgress: pos + 0.004, slowZone: null, color: "#dc2626", type: "stau" });
-      });
-      // 1 vehicle backing away slowly (stau tail)
-      if (vehicles.length < 10) {
-        vehicles.push({ id: `stau-${site.id}-2`, path, progress: 0.20, speed: 0.00005, maxProgress: 0.24, slowZone: null, color: "#f97316", type: "stau" });
+      if (site.type === "vollsperrung") {
+        // 3 stau vehicles stuck before the sperrung – they cannot pass
+        [0.25, 0.32, 0.38].forEach((pos, i) => {
+          if (vehicles.length >= 10) return;
+          vehicles.push({ id: `stau-${site.id}-${i}`, path, progress: pos, speed: 0.00005, maxProgress: pos + 0.003, slowZone: null, color: "#dc2626", type: "stau" });
+        });
+        // 2 detour vehicles taking alternate routes
+        const altPath = berlinSegments[(si + 1) % berlinSegments.length].coords;
+        [0.05, 0.45].forEach((pos, i) => {
+          if (vehicles.length >= 10) return;
+          vehicles.push({ id: `detour-${site.id}-${i}`, path: altPath, progress: pos, speed: 0.004, maxProgress: null, slowZone: null, color: "#3b82f6", type: "detour" });
+        });
+      } else {
+        // teilsperrung: vehicles drive in from outside, slow down in the construction zone, then exit
+        [0.0, 0.18, 0.5].forEach((pos, i) => {
+          if (vehicles.length >= 10) return;
+          vehicles.push({ id: `slow-${site.id}-${i}`, path, progress: pos, speed: 0.0035, maxProgress: null, slowZone: [0.25, 0.75], color: "#f59e0b", type: "slow" });
+        });
       }
-      // 2 detour vehicles on alternate routes
-      const altPath = berlinSegments[si % berlinSegments.length].coords;
-      [0.08, 0.52].forEach((pos, i) => {
-        if (vehicles.length >= 10) return;
-        vehicles.push({ id: `detour-${site.id}-${i}`, path: altPath, progress: pos, speed: 0.004, maxProgress: null, slowZone: null, color: "#3b82f6", type: "detour" });
-      });
-    } else {
-      // teilsperrung: 3 vehicles entering and moving slowly through the zone
-      [0.05, 0.22, 0.58].forEach((pos, i) => {
-        if (vehicles.length >= 10) return;
-        vehicles.push({ id: `slow-${site.id}-${i}`, path, progress: pos, speed: 0.0035, maxProgress: null, slowZone: [0.28, 0.72], color: "#f59e0b", type: "slow" });
-      });
-    }
-  });
+    });
+  }
 
-  // Fill remaining with normal vehicles along berlinSegment roads
+  // Fill remaining slots with normal vehicles along berlinSegment roads
   berlinSegments.forEach((seg, i) => {
     if (vehicles.length >= 10) return;
     vehicles.push({
@@ -238,20 +237,39 @@ function MapClickHandler({ active, isSnapping, onMapClick }) {
 
 function InfoTooltip({ text }) {
   const [visible, setVisible] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+
+  const handleEnter = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.top - 8, left: r.left - 8 });
+    }
+    setVisible(true);
+  };
+
   return (
     <span className="relative ml-1 inline-block">
       <button
-        onMouseEnter={() => setVisible(true)}
+        ref={btnRef}
+        onMouseEnter={handleEnter}
         onMouseLeave={() => setVisible(false)}
-        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-500 transition"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-100 text-[9px] font-bold text-sky-500 hover:bg-sky-200 hover:text-sky-600 transition cursor-help"
+        style={{ lineHeight: 1 }}
       >
-        i
+        ?
       </button>
       {visible && (
-        <span className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 block w-56 rounded-xl border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed text-slate-600 shadow-xl">
-          {text}
-          <span className="absolute -bottom-1 right-2 block h-2 w-2 rotate-45 border-b border-r border-slate-200 bg-white" />
-        </span>
+        <div
+          className="pointer-events-none fixed z-[9999]"
+          style={{ top: pos.top, left: pos.left, transform: "translate(-100%, -100%)" }}
+        >
+          <div className="w-80 rounded-xl border border-sky-200 bg-white p-3.5 text-[11px] leading-relaxed text-slate-600 shadow-2xl"
+            style={{ backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.98)", whiteSpace: "pre-line" }}>
+            <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-sky-600">ℹ Erklärung</span>
+            {text}
+          </div>
+        </div>
       )}
     </span>
   );
@@ -894,7 +912,7 @@ export default function RoadImpactBerlinMapMockup() {
           {/* SIMULATION STARTEN */}
           <div className="shrink-0 border-t border-slate-200 p-4">
             <button
-              onClick={() => { setSimTime(0); setSimPlaying(true); setSimVehicles(spawnSimVehicles(constructionSites)); }}
+              onClick={() => { setSimTime(0); setSimPlaying(true); setSimVehicles(spawnSimVehicles(constructionSites, isBaustelleMode)); }}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
             >
               <span>▶</span> SIMULATION STARTEN
@@ -961,8 +979,8 @@ export default function RoadImpactBerlinMapMockup() {
                 </CircleMarker>
               ))}
 
-              {/* Construction sites */}
-              {constructionSites.map((site) => (
+              {/* Construction sites – only visible in Baustelle mode */}
+              {isBaustelleMode && constructionSites.map((site) => (
                 <Fragment key={site.id}>
                   <Polyline positions={site.routeCoords} pathOptions={{ color: site.type === "vollsperrung" ? "#dc2626" : "#f59e0b", weight: 6, opacity: 0.85, dashArray: "10, 8" }} />
                   <Marker position={site.start} icon={baustelleIcon}>
