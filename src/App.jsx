@@ -263,9 +263,26 @@ export default function RoadImpactBerlinMapMockup() {
   const [baustelleStep, setBaustelleStep] = useState(null); // null | 'start' | 'end'
   const [pendingStart, setPendingStart] = useState(null);
   const [isSnapping, setIsSnapping] = useState(false);
+  const [openDauerPopup, setOpenDauerPopup] = useState(null);
 
   const removeConstructionSite = (id) => {
     setConstructionSites((prev) => prev.filter((site) => site.id !== id));
+  };
+
+  const updateSperrungDauer = (id, field, value) => {
+    setConstructionSites((prev) =>
+      prev.map((site) => (site.id === id ? { ...site, [field]: value } : site))
+    );
+  };
+
+  const toggleSperrungType = (id) => {
+    setConstructionSites((prev) =>
+      prev.map((site) =>
+        site.id === id
+          ? { ...site, type: site.type === "teilsperrung" ? "vollsperrung" : "teilsperrung" }
+          : site
+      )
+    );
   };
 
   const handleMapClick = async ([lat, lng]) => {
@@ -286,7 +303,10 @@ export default function RoadImpactBerlinMapMockup() {
           ...prev,
           {
             id: Date.now(),
-            name: `Baustelle ${prev.length + 1}`,
+            name: `Sperrung ${prev.length + 1}`,
+            type: "teilsperrung",
+            dauerValue: 1,
+            dauerUnit: "Wochen",
             start: pendingStart,
             end: snapped,
             routeCoords,
@@ -568,7 +588,7 @@ export default function RoadImpactBerlinMapMockup() {
                       <Polyline
                         positions={site.routeCoords}
                         pathOptions={{
-                          color: "#f59e0b",
+                          color: site.type === "vollsperrung" ? "#dc2626" : "#f59e0b",
                           weight: 6,
                           opacity: 0.85,
                           dashArray: "10, 8",
@@ -703,7 +723,7 @@ export default function RoadImpactBerlinMapMockup() {
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-sm font-medium text-amber-900">Baustellen</div>
+                        <div className="text-sm font-medium text-amber-900">Sperrungen</div>
                         <div className="text-xs text-amber-700">
                           {constructionSites.length} gesetzt
                         </div>
@@ -713,7 +733,7 @@ export default function RoadImpactBerlinMapMockup() {
                           onClick={() => setBaustelleStep("start")}
                           className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition"
                         >
-                          + Add Baustelle
+                          + Add Sperrung
                         </button>
                       ) : (
                         <button
@@ -745,14 +765,53 @@ export default function RoadImpactBerlinMapMockup() {
                     {constructionSites.length > 0 && (
                       <div className="space-y-1.5 pt-1">
                         {constructionSites.map((site) => (
-                          <div key={site.id} className="flex items-center justify-between rounded-xl bg-white border border-amber-200 px-3 py-2">
-                            <span className="text-xs font-medium text-amber-900">🚧 {site.name}</span>
-                            <button
-                              onClick={() => removeConstructionSite(site.id)}
-                              className="text-xs text-red-500 hover:text-red-700"
-                            >
-                              Remove
-                            </button>
+                          <div key={site.id} className="rounded-xl bg-white border border-amber-200 px-3 py-2 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-amber-900">🚧 {site.name}</span>
+                              <button
+                                onClick={() => removeConstructionSite(site.id)}
+                                className="text-xs text-red-400 hover:text-red-600"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-600">
+                              <span className="font-medium text-amber-900">Dauer:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="99"
+                                value={site.dauerValue}
+                                onChange={(e) => updateSperrungDauer(site.id, "dauerValue", Math.max(1, Number(e.target.value)))}
+                                className="w-12 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs font-medium outline-none focus:border-amber-400"
+                              />
+                              <select
+                                value={site.dauerUnit}
+                                onChange={(e) => updateSperrungDauer(site.id, "dauerUnit", e.target.value)}
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-amber-400"
+                              >
+                                <option>Tage</option>
+                                <option>Wochen</option>
+                                <option>Monate</option>
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 p-0.5 w-fit">
+                              {["teilsperrung", "vollsperrung"].map((t) => (
+                                <button
+                                  key={t}
+                                  onClick={() => toggleSperrungType(site.id)}
+                                  className={`rounded-full px-3 py-1 text-[11px] font-medium transition capitalize ${
+                                    site.type === t
+                                      ? t === "vollsperrung"
+                                        ? "bg-red-500 text-white shadow-sm"
+                                        : "bg-white text-slate-900 shadow-sm"
+                                      : "text-slate-400 hover:text-slate-600"
+                                  }`}
+                                >
+                                  {t === "teilsperrung" ? "Teilsperrung" : "Vollsperrung"}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>
