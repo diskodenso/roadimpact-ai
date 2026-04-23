@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -58,21 +58,106 @@ const pendingIcon = L.divIcon({
   iconAnchor: [15, 15],
 });
 
+const VALHALLA = "https://valhalla1.openstreetmap.de";
+
+function decodePolyline6(encoded) {
+  const coords = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < encoded.length) {
+    for (const isLat of [true, false]) {
+      let result = 0, shift = 0, b;
+      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1F) << shift; shift += 5; } while (b >= 0x20);
+      const val = (result & 1) ? ~(result >> 1) : (result >> 1);
+      if (isLat) lat += val; else lng += val;
+    }
+    coords.push([lat / 1e6, lng / 1e6]);
+  }
+  return coords;
+}
+
 async function snapToRoad(lat, lng) {
-  const res = await fetch(
-    `https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}`
-  );
+  const res = await fetch(`${VALHALLA}/locate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ locations: [{ lat, lon: lng }], costing: "auto" }),
+  });
   const data = await res.json();
-  const [snappedLng, snappedLat] = data.waypoints[0].location;
-  return [snappedLat, snappedLng];
+  const edge = data[0].edges[0];
+  return [edge.correlated_lat, edge.correlated_lon];
 }
 
 async function fetchRoute(start, end) {
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`
-  );
+  const res = await fetch(`${VALHALLA}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      locations: [{ lat: start[0], lon: start[1] }, { lat: end[0], lon: end[1] }],
+      costing: "auto",
+      shape_format: "polyline6",
+    }),
+  });
   const data = await res.json();
-  return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  return decodePolyline6(data.trip.legs[0].shape);
+}
+
+// Fixed start/end for the demo simulation corridor (Charlottenburg → Brandenburger Tor area)
+const SIM_START   = [52.5063, 13.2990];
+const SIM_END     = [52.5163, 13.3777];
+const SIM_ALT_VIA = [52.5260, 13.3420]; // northern bypass via Alt-Moabit
+
+const CAR_SPEED = 0.0009;
+const JAM_SPEED = 0.000055;
+
+async function fetchRouteMulti(waypoints) {
+  const res = await fetch(`${VALHALLA}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      locations: waypoints.map(([lat, lon]) => ({ lat, lon })),
+      costing: "auto",
+      shape_format: "polyline6",
+    }),
+  });
+  const data = await res.json();
+  return data.trip.legs.flatMap((leg) => decodePolyline6(leg.shape));
+}
+
+function interpolateRoute(coords, t) {
+  const clamped = Math.max(0, Math.min(1, t));
+  const total = coords.length - 1;
+  const pos = clamped * total;
+  const idx = Math.min(Math.floor(pos), total - 1);
+  const frac = pos - idx;
+  const [lat1, lng1] = coords[idx];
+  const [lat2, lng2] = coords[idx + 1];
+  return [lat1 + (lat2 - lat1) * frac, lng1 + (lng2 - lng1) * frac];
+}
+
+function findClosestT(coords, [targetLat, targetLng]) {
+  let minDist = Infinity;
+  let bestT = 0;
+  const total = coords.length - 1;
+  for (let i = 0; i < total; i++) {
+    const [lat1, lng1] = coords[i];
+    const [lat2, lng2] = coords[i + 1];
+    for (let f = 0; f <= 1; f += 0.1) {
+      const lat = lat1 + (lat2 - lat1) * f;
+      const lng = lng1 + (lng2 - lng1) * f;
+      const dist = Math.sqrt((lat - targetLat) ** 2 + (lng - targetLng) ** 2);
+      if (dist < minDist) { minDist = dist; bestT = (i + f) / total; }
+    }
+  }
+  return { t: bestT, dist: minDist };
+}
+
+function initCars() {
+  return Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    t: i / 20,
+    route: "main",
+    isJammed: false,
+    decided: false,
+  }));
 }
 
 const berlinSegments = [
@@ -434,6 +519,79 @@ export default function RoadImpactBerlinMapMockup() {
   const [baustelleStep, setBaustelleStep] = useState(null); // null | 'start' | 'end'
   const [pendingStart, setPendingStart] = useState(null);
   const [isSnapping, setIsSnapping] = useState(false);
+
+  const [simActive, setSimActive] = useState(false);
+  const [cars, setCars] = useState([]);
+  const [mainRoute, setMainRoute] = useState(null);
+  const [altRoute, setAltRoute] = useState(null);
+  const constructionSitesRef = useRef([]);
+  const mainRouteRef = useRef(null);
+  const altRouteRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  useEffect(() => { constructionSitesRef.current = constructionSites; }, [constructionSites]);
+  useEffect(() => { mainRouteRef.current = mainRoute; }, [mainRoute]);
+  useEffect(() => { altRouteRef.current = altRoute; }, [altRoute]);
+
+  useEffect(() => {
+    fetchRouteMulti([SIM_START, SIM_END]).then(setMainRoute).catch(() => {});
+    fetchRouteMulti([SIM_START, SIM_ALT_VIA, SIM_END]).then(setAltRoute).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!simActive) {
+      clearInterval(intervalRef.current);
+      setCars([]);
+      return;
+    }
+    setCars(initCars());
+    intervalRef.current = setInterval(() => {
+      const sites = constructionSitesRef.current;
+      const main = mainRouteRef.current;
+      if (!main) return;
+
+      // Compute jam zones: find where each Sperrung sits on the main route by t value
+      const jamZones = sites.flatMap((site) => {
+        const { t, dist } = findClosestT(main, site.center);
+        return dist < 0.015 ? [{ center: t, half: 0.10 }] : [];
+      });
+
+      setCars((prev) =>
+        prev.map((car) => {
+          let { t, route, isJammed, decided } = car;
+
+          if (jamZones.length > 0 && route === "main") {
+            const approaching = !decided && jamZones.find(
+              (z) => t > z.center - z.half - 0.13 && t < z.center - z.half
+            );
+            if (approaching) {
+              if (car.id % 3 === 0) {
+                return { ...car, route: "alt", t: 0, isJammed: false, decided: true };
+              }
+              return { ...car, decided: true };
+            }
+            const inJam = jamZones.some((z) => t >= z.center - z.half && t <= z.center + z.half);
+            if (inJam) {
+              isJammed = true;
+              t += JAM_SPEED;
+            } else {
+              isJammed = false;
+              t += CAR_SPEED;
+            }
+          } else {
+            isJammed = false;
+            t += CAR_SPEED;
+          }
+
+          if (t > 1) {
+            return { ...car, t: t - 1, route: "main", isJammed: false, decided: false };
+          }
+          return { ...car, t, route, isJammed, decided };
+        })
+      );
+    }, 80);
+    return () => clearInterval(intervalRef.current);
+  }, [simActive]);
 
   const removeConstructionSite = (id) => {
     setConstructionSites((prev) => prev.filter((site) => site.id !== id));
@@ -882,6 +1040,36 @@ export default function RoadImpactBerlinMapMockup() {
                     <Marker position={pendingStart} icon={pendingIcon} />
                   )}
 
+                  {/* Car simulation route guides */}
+                  {simActive && mainRoute && (
+                    <Polyline
+                      positions={mainRoute}
+                      pathOptions={{ color: "#3b82f6", weight: 3, opacity: 0.2, dashArray: "6 4" }}
+                    />
+                  )}
+                  {simActive && altRoute && (
+                    <Polyline
+                      positions={altRoute}
+                      pathOptions={{ color: "#f59e0b", weight: 3, opacity: 0.2, dashArray: "6 4" }}
+                    />
+                  )}
+
+                  {/* Moving cars */}
+                  {cars.map((car) => {
+                    const coords = car.route === "alt" ? altRoute : mainRoute;
+                    if (!coords) return null;
+                    const pos = interpolateRoute(coords, car.t);
+                    const color = car.isJammed ? "#dc2626" : car.route === "alt" ? "#f59e0b" : "#3b82f6";
+                    return (
+                      <CircleMarker
+                        key={car.id}
+                        center={pos}
+                        radius={4}
+                        pathOptions={{ color, fillColor: color, fillOpacity: 0.9, weight: 1 }}
+                      />
+                    );
+                  })}
+
                   <CircleMarker
                     center={[52.514, 13.352]}
                     radius={6}
@@ -1225,6 +1413,40 @@ export default function RoadImpactBerlinMapMockup() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold">Recommendation</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">{recommendation}</p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold">Verkehrssimulation</h2>
+              <p className="mt-2 text-xs text-slate-500">
+                Fahrzeuge als Punkte auf echten Straßen — Sperrung setzen um Stau und Umweg zu sehen.
+              </p>
+              {!mainRoute && (
+                <p className="mt-2 text-xs text-amber-600">Routen werden geladen…</p>
+              )}
+              <button
+                disabled={!mainRoute}
+                onClick={() => setSimActive((v) => !v)}
+                className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                  simActive
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-sky-600 text-white hover:bg-sky-700"
+                }`}
+              >
+                {simActive ? "Simulation stoppen" : "Simulation starten"}
+              </button>
+              {simActive && (
+                <div className="mt-3 flex gap-4 text-xs text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" /> Normal
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Stau
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" /> Umweg
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
