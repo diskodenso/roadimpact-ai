@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -354,6 +354,38 @@ export default function RoadImpactBerlinMapMockup() {
   const [simVehicles, setSimVehicles] = useState([]);
   const simIntervalRef = useRef(null);
 
+  // Resizable panel widths (px)
+  const [leftWidth, setLeftWidth] = useState(224);
+  const [rightWidth, setRightWidth] = useState(288);
+  const isDraggingRef = useRef(null); // 'left' | 'right' | null
+
+  const handleMouseDown = useCallback((side) => (e) => {
+    e.preventDefault();
+    isDraggingRef.current = side;
+    const startX = e.clientX;
+    const startWidth = side === 'left' ? leftWidth : rightWidth;
+
+    const onMouseMove = (e) => {
+      const delta = side === 'left' ? e.clientX - startX : startX - e.clientX;
+      const newWidth = Math.max(side === 'left' ? 180 : 240, Math.min(side === 'left' ? 320 : 400, startWidth + delta));
+      if (side === 'left') setLeftWidth(newWidth);
+      else setRightWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [leftWidth, rightWidth]);
+
   // Baustellen-mode extra params
   const [arbeitsstunden, setArbeitsstunden] = useState(8);
   const [arbeiterAnzahl, setArbeiterAnzahl] = useState(15);
@@ -579,9 +611,9 @@ export default function RoadImpactBerlinMapMockup() {
       {/* Header */}
       <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">RoadImpact AI</span>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Traffic Twin</span>
           <span className="text-slate-300">|</span>
-          <span className="text-sm font-semibold text-slate-700">Digitaler Zwilling – Baustellen Simulation Berlin</span>
+          <span className="text-sm font-semibold text-slate-700">Digitaler Zwilling – Verkehrssimulation Berlin</span>
         </div>
         <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs text-sky-700">Hackathon Prototyp · OpenStreetMap Demo</div>
       </header>
@@ -589,7 +621,7 @@ export default function RoadImpactBerlinMapMockup() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── LEFT: NUTZERPARAMETER ── */}
-        <aside className="flex w-56 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white">
+        <aside className="flex shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white" style={{ width: leftWidth }}>
           <div className="px-4 pt-4 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Nutzerparameter</div>
           </div>
@@ -920,6 +952,15 @@ export default function RoadImpactBerlinMapMockup() {
           </div>
         </aside>
 
+        {/* ── LEFT RESIZE HANDLE ── */}
+        <div
+          onMouseDown={handleMouseDown('left')}
+          className="group flex w-1.5 shrink-0 cursor-col-resize items-center justify-center hover:bg-sky-100 transition-colors"
+          title="Nutzerparameter-Breite anpassen"
+        >
+          <div className="h-8 w-0.5 rounded-full bg-slate-300 group-hover:bg-sky-500 transition-colors" />
+        </div>
+
         {/* ── CENTER: MAP + TIME PLAYER ── */}
         <main className="flex flex-1 flex-col overflow-hidden">
           {/* Map header */}
@@ -1057,8 +1098,17 @@ export default function RoadImpactBerlinMapMockup() {
           </div>
         </main>
 
+        {/* ── RIGHT RESIZE HANDLE ── */}
+        <div
+          onMouseDown={handleMouseDown('right')}
+          className="group flex w-1.5 shrink-0 cursor-col-resize items-center justify-center hover:bg-sky-100 transition-colors"
+          title="Ergebnisse-Breite anpassen"
+        >
+          <div className="h-8 w-0.5 rounded-full bg-slate-300 group-hover:bg-sky-500 transition-colors" />
+        </div>
+
         {/* ── RIGHT: ERGEBNISSE ── */}
-        <aside className="flex w-72 shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white">
+        <aside className="flex shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white" style={{ width: rightWidth }}>
           <div className="shrink-0 px-4 pt-4 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Ergebnisse</div>
           </div>
