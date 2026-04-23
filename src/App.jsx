@@ -1,12 +1,15 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
   Popup,
   CircleMarker,
+  Marker,
+  Polyline,
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 const MAP_LAYERS = {
   normal: {
@@ -23,9 +26,57 @@ const MAP_LAYERS = {
   },
 };
 
+const baustelleIcon = L.divIcon({
+  className: "",
+  html: `<div style="
+    width:36px;height:36px;
+    background:#f59e0b;
+    border:3px solid #92400e;
+    border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    transform:rotate(45deg);
+  "><span style="transform:rotate(-45deg);display:block;line-height:1">🚧</span></div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+});
+
+const pendingIcon = L.divIcon({
+  className: "",
+  html: `<div style="
+    width:30px;height:30px;
+    background:#fde68a;
+    border:2px dashed #92400e;
+    border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;
+    opacity:0.75;
+    transform:rotate(45deg);
+  "><span style="transform:rotate(-45deg);display:block;line-height:1">📍</span></div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+});
+
+async function snapToRoad(lat, lng) {
+  const res = await fetch(
+    `https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}`
+  );
+  const data = await res.json();
+  const [snappedLng, snappedLat] = data.waypoints[0].location;
+  return [snappedLat, snappedLng];
+}
+
+async function fetchRoute(start, end) {
+  const res = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`
+  );
+  const data = await res.json();
+  return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+}
+
 const berlinSegments = [
   {
-    // A100 (Stadtring) westlicher Bogen nahe Funkturm/Dreieck Funkturm
     id: 1,
     name: "A100 / Funkturm Corridor",
     type: "Motorway",
@@ -44,7 +95,6 @@ const berlinSegments = [
     weight: 1.15,
   },
   {
-    // Straße des 17. Juni – Ernst-Reuter-Platz bis Brandenburger Tor
     id: 2,
     name: "Straße des 17. Juni",
     type: "Urban arterial",
@@ -63,7 +113,6 @@ const berlinSegments = [
     weight: 0.95,
   },
   {
-    // Tiergartentunnel / Ebertstraße – Großer Stern Richtung Potsdamer Platz
     id: 3,
     name: "Tiergarten Tunnel / Potsdamer Platz Link",
     type: "Critical connector",
@@ -82,7 +131,6 @@ const berlinSegments = [
     weight: 1.0,
   },
   {
-    // Invalidenstraße – westlich Hbf bis Alt-Moabit Kreuzung
     id: 4,
     name: "Invalidenstraße / Hauptbahnhof Corridor",
     type: "Urban connector",
@@ -101,7 +149,6 @@ const berlinSegments = [
     weight: 0.9,
   },
   {
-    // Moltkebrücke / Spree – Überquerung nahe Hauptbahnhof
     id: 5,
     name: "Spree Bridge Segment",
     type: "Bridge",
@@ -175,7 +222,7 @@ function getConstructionImpactForSegment(segment, constructionSites, laneClosure
   let impact = laneClosure ? 1.12 : 1;
 
   constructionSites.forEach((site) => {
-    const distance = distanceInDegrees(segment.center, site.position);
+    const distance = distanceInDegrees(segment.center, site.center);
 
     if (distance < 0.008) {
       impact += 0.35;
@@ -189,55 +236,16 @@ function getConstructionImpactForSegment(segment, constructionSites, laneClosure
   return impact;
 }
 
-function MapClickHandler({ selectedUseCase, onAddConstruction }) {
+function MapClickHandler({ active, isSnapping, onMapClick }) {
   useMapEvents({
     click(event) {
-      if (selectedUseCase === "Baustellenplanung vor dem Start") {
+      if (active && !isSnapping) {
         const { lat, lng } = event.latlng;
-        onAddConstruction([lat, lng]);
+        onMapClick([lat, lng]);
       }
     },
   });
-
   return null;
-}
-
-function ConstructionSiteMarker({ site, onRemove }) {
-  return (
-    <CircleMarker
-      center={site.position}
-      radius={9}
-      pathOptions={{
-        color: "#b91c1c",
-        fillColor: "#ef4444",
-        fillOpacity: 0.85,
-        weight: 2,
-      }}
-    >
-      <Popup>
-        <div style={{ minWidth: 180 }}>
-          <strong>{site.name}</strong>
-          <br />
-          Geplante Baustelle
-          <br />
-          <button
-            onClick={() => onRemove(site.id)}
-            style={{
-              marginTop: "8px",
-              padding: "6px 10px",
-              border: "none",
-              borderRadius: "8px",
-              background: "#dc2626",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            Entfernen
-          </button>
-        </div>
-      </Popup>
-    </CircleMarker>
-  );
 }
 
 export default function RoadImpactBerlinMapMockup() {
@@ -249,27 +257,57 @@ export default function RoadImpactBerlinMapMockup() {
   const [timeOfDay, setTimeOfDay] = useState("Morgen");
   const [forecastWeeks, setForecastWeeks] = useState(3);
   const [mapView, setMapView] = useState("normal");
-  const [constructionSites, setConstructionSites] = useState([
-    {
-      id: 1,
-      name: "Test-Baustelle A100",
-      position: [52.5058, 13.29],
-    },
-  ]);
 
-  const addConstructionSite = (position) => {
-    setConstructionSites((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        name: `Baustelle ${prev.length + 1}`,
-        position,
-      },
-    ]);
-  };
+  // Baustellen state
+  const [constructionSites, setConstructionSites] = useState([]);
+  const [baustelleStep, setBaustelleStep] = useState(null); // null | 'start' | 'end'
+  const [pendingStart, setPendingStart] = useState(null);
+  const [isSnapping, setIsSnapping] = useState(false);
 
   const removeConstructionSite = (id) => {
     setConstructionSites((prev) => prev.filter((site) => site.id !== id));
+  };
+
+  const handleMapClick = async ([lat, lng]) => {
+    setIsSnapping(true);
+    try {
+      const snapped = await snapToRoad(lat, lng);
+
+      if (baustelleStep === "start") {
+        setPendingStart(snapped);
+        setBaustelleStep("end");
+      } else if (baustelleStep === "end") {
+        const routeCoords = await fetchRoute(pendingStart, snapped);
+        const center = [
+          (pendingStart[0] + snapped[0]) / 2,
+          (pendingStart[1] + snapped[1]) / 2,
+        ];
+        setConstructionSites((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            name: `Baustelle ${prev.length + 1}`,
+            start: pendingStart,
+            end: snapped,
+            routeCoords,
+            center,
+          },
+        ]);
+        setBaustelleStep(null);
+        setPendingStart(null);
+      }
+    } catch {
+      // fallback: if OSRM fails, cancel placement
+      setBaustelleStep(null);
+      setPendingStart(null);
+    } finally {
+      setIsSnapping(false);
+    }
+  };
+
+  const cancelPlacement = () => {
+    setBaustelleStep(null);
+    setPendingStart(null);
   };
 
   const weatherFactor = weatherFactors[weather];
@@ -388,6 +426,8 @@ export default function RoadImpactBerlinMapMockup() {
     return `In den nächsten ${forecastWeeks} Wochen könnte dieser Abschnitt zunehmend kritisch werden. Empfehlung: präventive Prüfung und priorisierte Beobachtung durch Kommune oder Straßenbehörde.`;
   }, [selectedUseCase, forecastWeeks, constructionSites.length]);
 
+  const isBaustelleMode = selectedUseCase === "Baustellenplanung vor dem Start";
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -437,10 +477,18 @@ export default function RoadImpactBerlinMapMockup() {
                 <div>
                   <h2 className="text-lg font-semibold">Interactive map · Berlin</h2>
                   <p className="text-sm text-slate-500">
-                    Click a corridor to inspect details and scenario effects.
-                    {selectedUseCase === "Baustellenplanung vor dem Start"
-                      ? " Click on the map to add construction sites."
-                      : ""}
+                    {isBaustelleMode && baustelleStep === "start" && (
+                      <span className="font-medium text-amber-600">Click on a road to set the start point of the Baustelle.</span>
+                    )}
+                    {isBaustelleMode && baustelleStep === "end" && (
+                      <span className="font-medium text-amber-600">Now click the end point on a road.</span>
+                    )}
+                    {isBaustelleMode && isSnapping && (
+                      <span className="text-slate-400">Snapping to road...</span>
+                    )}
+                    {(!isBaustelleMode || !baustelleStep) && !isSnapping && (
+                      "Click a corridor to inspect details and scenario effects."
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 p-1">
@@ -460,7 +508,10 @@ export default function RoadImpactBerlinMapMockup() {
                 </div>
               </div>
 
-              <div className="h-[650px]">
+              <div
+                className="h-[650px]"
+                style={{ cursor: baustelleStep && !isSnapping ? "crosshair" : "default" }}
+              >
                 <MapContainer
                   center={[52.516, 13.375]}
                   zoom={13}
@@ -473,10 +524,12 @@ export default function RoadImpactBerlinMapMockup() {
                   />
 
                   <MapClickHandler
-                    selectedUseCase={selectedUseCase}
-                    onAddConstruction={addConstructionSite}
+                    active={isBaustelleMode && !!baustelleStep}
+                    isSnapping={isSnapping}
+                    onMapClick={handleMapClick}
                   />
 
+                  {/* Data segment dots */}
                   {segments.map((segment) => (
                     <CircleMarker
                       key={segment.id}
@@ -509,13 +562,75 @@ export default function RoadImpactBerlinMapMockup() {
                     </CircleMarker>
                   ))}
 
+                  {/* Construction sites */}
                   {constructionSites.map((site) => (
-                    <ConstructionSiteMarker
-                      key={site.id}
-                      site={site}
-                      onRemove={removeConstructionSite}
-                    />
+                    <Fragment key={site.id}>
+                      <Polyline
+                        positions={site.routeCoords}
+                        pathOptions={{
+                          color: "#f59e0b",
+                          weight: 6,
+                          opacity: 0.85,
+                          dashArray: "10, 8",
+                        }}
+                      />
+                      <Marker position={site.start} icon={baustelleIcon}>
+                        <Popup>
+                          <div style={{ minWidth: 160 }}>
+                            <strong>{site.name}</strong>
+                            <br />
+                            <span style={{ fontSize: "0.8em", color: "#6b7280" }}>Start</span>
+                            <br />
+                            <button
+                              onClick={() => removeConstructionSite(site.id)}
+                              style={{
+                                marginTop: "8px",
+                                padding: "5px 10px",
+                                border: "none",
+                                borderRadius: "8px",
+                                background: "#dc2626",
+                                color: "white",
+                                cursor: "pointer",
+                                fontSize: "0.85em",
+                              }}
+                            >
+                              Remove Baustelle
+                            </button>
+                          </div>
+                        </Popup>
+                      </Marker>
+                      <Marker position={site.end} icon={baustelleIcon}>
+                        <Popup>
+                          <div style={{ minWidth: 160 }}>
+                            <strong>{site.name}</strong>
+                            <br />
+                            <span style={{ fontSize: "0.8em", color: "#6b7280" }}>End</span>
+                            <br />
+                            <button
+                              onClick={() => removeConstructionSite(site.id)}
+                              style={{
+                                marginTop: "8px",
+                                padding: "5px 10px",
+                                border: "none",
+                                borderRadius: "8px",
+                                background: "#dc2626",
+                                color: "white",
+                                cursor: "pointer",
+                                fontSize: "0.85em",
+                              }}
+                            >
+                              Remove Baustelle
+                            </button>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    </Fragment>
                   ))}
+
+                  {/* Pending start marker while placing */}
+                  {pendingStart && (
+                    <Marker position={pendingStart} icon={pendingIcon} />
+                  )}
 
                   <CircleMarker
                     center={[52.514, 13.352]}
@@ -572,7 +687,10 @@ export default function RoadImpactBerlinMapMockup() {
                   <label className="text-sm font-medium text-slate-700">Use case</label>
                   <select
                     value={selectedUseCase}
-                    onChange={(event) => setSelectedUseCase(event.target.value)}
+                    onChange={(event) => {
+                      setSelectedUseCase(event.target.value);
+                      cancelPlacement();
+                    }}
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
                   >
                     {useCases.map((useCase) => (
@@ -581,15 +699,64 @@ export default function RoadImpactBerlinMapMockup() {
                   </select>
                 </div>
 
-                {selectedUseCase === "Baustellenplanung vor dem Start" && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="text-sm font-medium text-slate-700">Baustellen auf Karte</div>
-                    <div className="text-xs text-slate-500">
-                      Aktuell gesetzt: {constructionSites.length}
+                {isBaustelleMode && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-amber-900">Baustellen</div>
+                        <div className="text-xs text-amber-700">
+                          {constructionSites.length} gesetzt
+                        </div>
+                      </div>
+                      {!baustelleStep ? (
+                        <button
+                          onClick={() => setBaustelleStep("start")}
+                          className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition"
+                        >
+                          + Add Baustelle
+                        </button>
+                      ) : (
+                        <button
+                          onClick={cancelPlacement}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
-                    <div className="mt-2 text-xs text-slate-500">
-                      Klicke auf die Karte, um eine neue Baustelle zu platzieren.
-                    </div>
+
+                    {baustelleStep && (
+                      <div className="flex items-center gap-2 text-xs text-amber-800">
+                        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-bold ${baustelleStep === "start" ? "bg-amber-500" : "bg-green-500"}`}>
+                          {baustelleStep === "start" ? "1" : "✓"}
+                        </span>
+                        <span>Start</span>
+                        <span className="mx-1 text-amber-300">—</span>
+                        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-bold ${baustelleStep === "end" ? "bg-amber-500" : "bg-amber-200 text-amber-600"}`}>
+                          2
+                        </span>
+                        <span>End</span>
+                        {isSnapping && (
+                          <span className="ml-2 text-amber-600 italic">snapping...</span>
+                        )}
+                      </div>
+                    )}
+
+                    {constructionSites.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {constructionSites.map((site) => (
+                          <div key={site.id} className="flex items-center justify-between rounded-xl bg-white border border-amber-200 px-3 py-2">
+                            <span className="text-xs font-medium text-amber-900">🚧 {site.name}</span>
+                            <button
+                              onClick={() => removeConstructionSite(site.id)}
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -617,10 +784,11 @@ export default function RoadImpactBerlinMapMockup() {
                       <button
                         key={item}
                         onClick={() => setWeather(item)}
-                        className={`rounded-2xl border px-3 py-3 text-sm transition ${weather === item
+                        className={`rounded-2xl border px-3 py-3 text-sm transition ${
+                          weather === item
                             ? "border-slate-900 bg-slate-900 text-white"
                             : "border-slate-200 bg-slate-50 text-slate-700"
-                          }`}
+                        }`}
                       >
                         {item}
                       </button>
@@ -653,12 +821,14 @@ export default function RoadImpactBerlinMapMockup() {
                   </div>
                   <button
                     onClick={() => setLaneClosure(!laneClosure)}
-                    className={`relative h-7 w-12 rounded-full transition ${laneClosure ? "bg-sky-600" : "bg-slate-300"
-                      }`}
+                    className={`relative h-7 w-12 rounded-full transition ${
+                      laneClosure ? "bg-sky-600" : "bg-slate-300"
+                    }`}
                   >
                     <span
-                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${laneClosure ? "left-6" : "left-1"
-                        }`}
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${
+                        laneClosure ? "left-6" : "left-1"
+                      }`}
                     />
                   </button>
                 </div>
@@ -704,10 +874,11 @@ export default function RoadImpactBerlinMapMockup() {
                     <button
                       key={segment.id}
                       onClick={() => setSelectedId(segment.id)}
-                      className={`w-full rounded-2xl border p-4 text-left transition ${selectedId === segment.id
+                      className={`w-full rounded-2xl border p-4 text-left transition ${
+                        selectedId === segment.id
                           ? "border-sky-300 bg-sky-50"
                           : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                        }`}
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
