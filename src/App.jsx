@@ -1,13 +1,27 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
-  Polyline,
   Popup,
   CircleMarker,
   useMapEvents,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+
+const MAP_LAYERS = {
+  normal: {
+    label: "Map",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  autobahn: {
+    label: "Autobahn",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+};
 
 const berlinSegments = [
   {
@@ -234,6 +248,7 @@ export default function RoadImpactBerlinMapMockup() {
   const [weather, setWeather] = useState("Klar");
   const [timeOfDay, setTimeOfDay] = useState("Morgen");
   const [forecastWeeks, setForecastWeeks] = useState(3);
+  const [mapView, setMapView] = useState("normal");
   const [constructionSites, setConstructionSites] = useState([
     {
       id: 1,
@@ -428,8 +443,20 @@ export default function RoadImpactBerlinMapMockup() {
                       : ""}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
-                  OpenStreetMap
+                <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 p-1">
+                  {Object.entries(MAP_LAYERS).map(([key, layer]) => (
+                    <button
+                      key={key}
+                      onClick={() => setMapView(key)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
+                        mapView === key
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {layer.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -441,8 +468,8 @@ export default function RoadImpactBerlinMapMockup() {
                   style={{ height: "100%", width: "100%" }}
                 >
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution={MAP_LAYERS[mapView].attribution}
+                    url={MAP_LAYERS[mapView].url}
                   />
 
                   <MapClickHandler
@@ -451,47 +478,35 @@ export default function RoadImpactBerlinMapMockup() {
                   />
 
                   {segments.map((segment) => (
-                    <React.Fragment key={segment.id}>
-                      <Polyline
-                        positions={segment.coords}
-                        pathOptions={{
-                          color: segment.color,
-                          weight: selectedId === segment.id ? 10 : 7,
-                          opacity: 0.9,
-                        }}
-                        eventHandlers={{
-                          click: () => setSelectedId(segment.id),
-                        }}
-                      />
-                      <CircleMarker
-                        center={segment.center}
-                        radius={selectedId === segment.id ? 10 : 7}
-                        pathOptions={{
-                          color: segment.color,
-                          fillColor: segment.color,
-                          fillOpacity: 0.8,
-                        }}
-                        eventHandlers={{
-                          click: () => setSelectedId(segment.id),
-                        }}
-                      >
-                        <Popup>
-                          <div style={{ minWidth: 180 }}>
-                            <strong>{segment.name}</strong>
-                            <br />
-                            Risk: {segment.combinedRisk}
-                            <br />
-                            Congestion: {segment.congestionScore}
-                            <br />
-                            CO2: {segment.co2Score}
-                            <br />
-                            Wear: {segment.wearScore}
-                            <br />
-                            Accident risk: {segment.accidentScore}
-                          </div>
-                        </Popup>
-                      </CircleMarker>
-                    </React.Fragment>
+                    <CircleMarker
+                      key={segment.id}
+                      center={segment.center}
+                      radius={selectedId === segment.id ? 10 : 7}
+                      pathOptions={{
+                        color: segment.color,
+                        fillColor: segment.color,
+                        fillOpacity: 0.8,
+                      }}
+                      eventHandlers={{
+                        click: () => setSelectedId(segment.id),
+                      }}
+                    >
+                      <Popup>
+                        <div style={{ minWidth: 180 }}>
+                          <strong>{segment.name}</strong>
+                          <br />
+                          Risk: {segment.combinedRisk}
+                          <br />
+                          Congestion: {segment.congestionScore}
+                          <br />
+                          CO2: {segment.co2Score}
+                          <br />
+                          Wear: {segment.wearScore}
+                          <br />
+                          Accident risk: {segment.accidentScore}
+                        </div>
+                      </Popup>
+                    </CircleMarker>
                   ))}
 
                   {constructionSites.map((site) => (
