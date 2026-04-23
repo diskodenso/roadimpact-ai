@@ -187,6 +187,77 @@ const timeFactors = {
   Nacht: 0.72,
 };
 
+const vehicleProfiles = [
+  {
+    id: "pkw",
+    label: "PKW",
+    kind: "car",
+    minCount: 0,
+    maxCount: 20000,
+    countStep: 100,
+    minWeight: 1,
+    maxWeight: 3,
+    weightStep: 0.1,
+    defaultCount: 7000,
+    defaultWeight: 1.6,
+    congestionFactor: 1,
+    emissionFactor: 0.9,
+    wearFactor: 0.35,
+    riskFactor: 0.92,
+  },
+  {
+    id: "suv",
+    label: "SUV",
+    kind: "suv",
+    minCount: 0,
+    maxCount: 12000,
+    countStep: 50,
+    minWeight: 1.4,
+    maxWeight: 4,
+    weightStep: 0.1,
+    defaultCount: 1800,
+    defaultWeight: 2.1,
+    congestionFactor: 1.05,
+    emissionFactor: 1.05,
+    wearFactor: 0.5,
+    riskFactor: 0.97,
+  },
+  {
+    id: "transporter",
+    label: "Transporter",
+    kind: "van",
+    minCount: 0,
+    maxCount: 8000,
+    countStep: 50,
+    minWeight: 1.8,
+    maxWeight: 7.5,
+    weightStep: 0.1,
+    defaultCount: 700,
+    defaultWeight: 3.2,
+    congestionFactor: 1.1,
+    emissionFactor: 1.18,
+    wearFactor: 0.7,
+    riskFactor: 1.02,
+  },
+  {
+    id: "lkw",
+    label: "LKW",
+    kind: "truck",
+    minCount: 0,
+    maxCount: 6000,
+    countStep: 50,
+    minWeight: 8,
+    maxWeight: 40,
+    weightStep: 1,
+    defaultCount: 1250,
+    defaultWeight: 18,
+    congestionFactor: 1.2,
+    emissionFactor: 1.55,
+    wearFactor: 1.9,
+    riskFactor: 1.12,
+  },
+];
+
 function getRiskColor(score) {
   if (score >= 85) return "#dc2626";
   if (score >= 70) return "#f97316";
@@ -212,6 +283,97 @@ function distanceInDegrees(a, b) {
   const latDiff = a[0] - b[0];
   const lngDiff = a[1] - b[1];
   return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+}
+
+function formatNumberDe(value) {
+  return new Intl.NumberFormat("de-DE").format(value);
+}
+
+function formatWeightDe(value) {
+  return new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function VehicleTypeIcon({ kind, active }) {
+  const palette = active
+    ? {
+        body: "#0f172a",
+        detail: "#f8fafc",
+        wheel: "#1e293b",
+      }
+    : {
+        body: "#64748b",
+        detail: "#e2e8f0",
+        wheel: "#94a3b8",
+      };
+
+  if (kind === "truck") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden="true" className="h-7 w-11" fill="none">
+        <rect x="4" y="11" width="29" height="15" rx="3" fill={palette.body} />
+        <path d="M33 15h9l6 6v5H33V15Z" fill={palette.body} />
+        <circle cx="18" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="43" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="18" cy="30" r="2.1" fill={palette.detail} />
+        <circle cx="43" cy="30" r="2.1" fill={palette.detail} />
+        <path
+          d="M40 15v7h8"
+          stroke={palette.detail}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (kind === "van") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden="true" className="h-7 w-11" fill="none">
+        <path
+          d="M8 19c0-4.4 3.6-8 8-8h16c4.5 0 8.4 1.9 11.2 5.4l4.2 5.1V26H8v-7Z"
+          fill={palette.body}
+        />
+        <circle cx="20" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="43" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="20" cy="30" r="2.1" fill={palette.detail} />
+        <circle cx="43" cy="30" r="2.1" fill={palette.detail} />
+        <path d="M34 13v9h10" stroke={palette.detail} strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (kind === "suv") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden="true" className="h-7 w-11" fill="none">
+        <path
+          d="M9 23c0-4 3.2-7.2 7.2-7.2h10l6.2-5.3c1-.8 2.2-1.3 3.5-1.3h6.6c2.7 0 5.2 1.5 6.5 3.9L54 20v6H9v-3Z"
+          fill={palette.body}
+        />
+        <circle cx="20" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="44" cy="30" r="5" fill={palette.wheel} />
+        <circle cx="20" cy="30" r="2.1" fill={palette.detail} />
+        <circle cx="44" cy="30" r="2.1" fill={palette.detail} />
+        <path d="M31 13h11" stroke={palette.detail} strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 64 40" aria-hidden="true" className="h-7 w-11" fill="none">
+      <path
+        d="M9 23c0-4 3.2-7.2 7.2-7.2h11.8l5.6-4.9c1.2-1 2.6-1.6 4.1-1.6h7.2c2.5 0 4.8 1.4 5.9 3.6L54 20v6H9v-3Z"
+        fill={palette.body}
+      />
+      <circle cx="20" cy="30" r="5" fill={palette.wheel} />
+      <circle cx="44" cy="30" r="5" fill={palette.wheel} />
+      <circle cx="20" cy="30" r="2.1" fill={palette.detail} />
+      <circle cx="44" cy="30" r="2.1" fill={palette.detail} />
+      <path d="M30 12.5h10.5" stroke={palette.detail} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function getConstructionImpactForSegment(segment, constructionSites, laneClosure) {
@@ -251,7 +413,16 @@ function MapClickHandler({ active, isSnapping, onMapClick }) {
 export default function RoadImpactBerlinMapMockup() {
   const [selectedUseCase, setSelectedUseCase] = useState("Baustellenplanung vor dem Start");
   const [selectedId, setSelectedId] = useState(1);
-  const [truckTraffic, setTruckTraffic] = useState(60);
+  const [selectedVehicleId, setSelectedVehicleId] = useState("pkw");
+  const [vehicleMix, setVehicleMix] = useState(() =>
+    vehicleProfiles.reduce((accumulator, profile) => {
+      accumulator[profile.id] = {
+        count: profile.defaultCount,
+        avgWeight: profile.defaultWeight,
+      };
+      return accumulator;
+    }, {})
+  );
   const [laneClosure, setLaneClosure] = useState(true);
   const [weather, setWeather] = useState("Klar");
   const [timeOfDay, setTimeOfDay] = useState("Morgen");
@@ -263,7 +434,6 @@ export default function RoadImpactBerlinMapMockup() {
   const [baustelleStep, setBaustelleStep] = useState(null); // null | 'start' | 'end'
   const [pendingStart, setPendingStart] = useState(null);
   const [isSnapping, setIsSnapping] = useState(false);
-  const [openDauerPopup, setOpenDauerPopup] = useState(null);
 
   const removeConstructionSite = (id) => {
     setConstructionSites((prev) => prev.filter((site) => site.id !== id));
@@ -332,7 +502,59 @@ export default function RoadImpactBerlinMapMockup() {
 
   const weatherFactor = weatherFactors[weather];
   const timeFactor = timeFactors[timeOfDay];
-  const trafficFactor = truckTraffic / 60;
+  const selectedVehicleProfile =
+    vehicleProfiles.find((profile) => profile.id === selectedVehicleId) ?? vehicleProfiles[0];
+  const selectedVehicleValues = vehicleMix[selectedVehicleProfile.id];
+
+  const updateVehicleMetric = (vehicleId, field, value) => {
+    setVehicleMix((prev) => ({
+      ...prev,
+      [vehicleId]: {
+        ...prev[vehicleId],
+        [field]: value,
+      },
+    }));
+  };
+
+  const profileStats = vehicleProfiles.map((profile) => {
+    const values = vehicleMix[profile.id];
+    return {
+      ...profile,
+      count: values.count,
+      avgWeight: values.avgWeight,
+    };
+  });
+
+  const totalVehicles = profileStats.reduce((sum, profile) => sum + profile.count, 0);
+  const weightedCongestionLoad = profileStats.reduce(
+    (sum, profile) => sum + profile.count * profile.congestionFactor,
+    0
+  );
+  const weightedEmissionLoad = profileStats.reduce((sum, profile) => {
+    const weightRatio = profile.avgWeight / profile.defaultWeight;
+    return sum + profile.count * profile.emissionFactor * weightRatio;
+  }, 0);
+  const weightedWearLoad = profileStats.reduce((sum, profile) => {
+    const weightRatio = profile.avgWeight / profile.defaultWeight;
+    return sum + profile.count * profile.wearFactor * weightRatio;
+  }, 0);
+  const weightedRiskLoad = profileStats.reduce(
+    (sum, profile) => sum + profile.count * profile.riskFactor,
+    0
+  );
+
+  const truckProfiles = profileStats.filter((profile) => profile.kind === "truck");
+  const truckCount = truckProfiles.reduce((sum, profile) => sum + profile.count, 0);
+  const truckWeightAverage = truckCount
+    ? truckProfiles.reduce((sum, profile) => sum + profile.count * profile.avgWeight, 0) /
+      truckCount
+    : 0;
+  const truckShare = totalVehicles > 0 ? truckCount / totalVehicles : 0;
+  const totalTrafficFactor = Math.max(0.35, weightedCongestionLoad / 10250);
+  const emissionsFactor =
+    totalVehicles > 0 ? 0.78 + weightedEmissionLoad / totalVehicles / 2.4 : 0.78;
+  const wearFactor = totalVehicles > 0 ? 0.72 + weightedWearLoad / totalVehicles : 0.72;
+  const accidentMixFactor = totalVehicles > 0 ? weightedRiskLoad / totalVehicles : 0.92;
 
   const segments = useMemo(() => {
     return berlinSegments.map((segment) => {
@@ -343,13 +565,18 @@ export default function RoadImpactBerlinMapMockup() {
             ? 1.12
             : 1;
 
-      let congestion = segment.baseCongestion * trafficFactor * timeFactor;
-      let co2 = segment.baseCo2 * trafficFactor * weatherFactor;
+      let congestion = segment.baseCongestion * totalTrafficFactor * timeFactor;
+      let co2 = segment.baseCo2 * totalTrafficFactor * weatherFactor * emissionsFactor;
       let wear =
         segment.baseWear *
-        trafficFactor *
+        totalTrafficFactor *
+        wearFactor *
         (weather === "Frost" ? 1.16 : weather === "Regen" ? 1.08 : 1);
-      let accidentRisk = segment.baseAccidentRisk * timeFactor * weatherFactor;
+      let accidentRisk =
+        segment.baseAccidentRisk *
+        timeFactor *
+        weatherFactor *
+        accidentMixFactor;
 
       if (selectedUseCase === "Baustellenplanung vor dem Start") {
         congestion *= constructionFactor;
@@ -408,7 +635,10 @@ export default function RoadImpactBerlinMapMockup() {
       };
     });
   }, [
-    truckTraffic,
+    totalTrafficFactor,
+    emissionsFactor,
+    wearFactor,
+    accidentMixFactor,
     timeFactor,
     weatherFactor,
     weather,
@@ -820,20 +1050,97 @@ export default function RoadImpactBerlinMapMockup() {
                 )}
 
                 <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-slate-700">
-                      Truck traffic intensity
-                    </label>
-                    <span className="text-sm font-semibold text-slate-900">{truckTraffic}%</span>
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                    <div className="text-base font-semibold text-slate-900">Fahrzeug &amp; Flotte</div>
+                    <div className="mt-1 text-xs text-slate-500">Mehrere Typen gleichzeitig im Mix</div>
+
+                    <div className="mt-4 grid grid-cols-4 gap-2">
+                      {vehicleProfiles.map((profile) => {
+                        const active = selectedVehicleId === profile.id;
+                        return (
+                          <button
+                            key={profile.id}
+                            onClick={() => setSelectedVehicleId(profile.id)}
+                            className={`rounded-2xl border p-3 text-center transition ${
+                              active
+                                ? "border-sky-300 bg-white shadow-sm ring-1 ring-sky-200"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                            title={profile.label}
+                          >
+                            <div className="flex justify-center">
+                              <VehicleTypeIcon kind={profile.kind} active={active} />
+                            </div>
+                            <div
+                              className={`mt-2 text-[11px] font-medium ${
+                                active ? "text-slate-900" : "text-slate-500"
+                              }`}
+                            >
+                              {profile.label}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-slate-700">
+                          Anzahl {selectedVehicleProfile.label}
+                        </label>
+                        <span className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
+                          {formatNumberDe(selectedVehicleValues.count)}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={selectedVehicleProfile.minCount}
+                        max={selectedVehicleProfile.maxCount}
+                        step={selectedVehicleProfile.countStep}
+                        value={selectedVehicleValues.count}
+                        onChange={(event) =>
+                          updateVehicleMetric(
+                            selectedVehicleProfile.id,
+                            "count",
+                            Number(event.target.value)
+                          )
+                        }
+                        className="mt-3 w-full"
+                      />
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-slate-700">
+                          Durchschnittsgewicht {selectedVehicleProfile.label} (t)
+                        </label>
+                        <span className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
+                          {formatWeightDe(selectedVehicleValues.avgWeight)}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={selectedVehicleProfile.minWeight}
+                        max={selectedVehicleProfile.maxWeight}
+                        step={selectedVehicleProfile.weightStep}
+                        value={selectedVehicleValues.avgWeight}
+                        onChange={(event) =>
+                          updateVehicleMetric(
+                            selectedVehicleProfile.id,
+                            "avgWeight",
+                            Number(event.target.value)
+                          )
+                        }
+                        className="mt-3 w-full"
+                      />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
+                      Aktiver Mix: {formatNumberDe(totalVehicles)} Fahrzeuge, davon{" "}
+                      {truckShare > 0 ? Math.round(truckShare * 100) : 0}% schwere Fahrzeuge bei{" "}
+                      {formatWeightDe(truckWeightAverage)} t Durchschnittsgewicht.
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min="20"
-                    max="100"
-                    value={truckTraffic}
-                    onChange={(event) => setTruckTraffic(Number(event.target.value))}
-                    className="mt-3 w-full"
-                  />
                 </div>
 
                 <div>
